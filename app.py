@@ -11,8 +11,8 @@ st.write(
 )
 
 # 1️⃣ FFmpeg/ffprobe 경로 직접 지정
-ffmpeg_path = "C:\\ffmpeg\\bin\\ffmpeg.exe"   # ← ffmpeg.exe 전체 경로
-ffprobe_path = "C:\\ffmpeg\\bin\\ffprobe.exe" # ← ffprobe.exe 전체 경로
+ffmpeg_path = "C:\\ffmpeg\\bin\\ffmpeg"   # ← ffmpeg.exe 전체 경로
+ffprobe_path = "C:\\ffmpeg\\bin\\ffprobe" # ← ffprobe.exe 전체 경로
 
 # 2️⃣ 설치 여부 확인
 if not (os.path.exists(ffmpeg_path) and os.path.exists(ffprobe_path)):
