@@ -3,21 +3,21 @@ import requests
 import time
 import tempfile
 from yt_dlp import YoutubeDL, DownloadError
+import shutil
 
 ASSEMBLYAI_URL = "https://api.assemblyai.com/v2"
 
-def check_ffmpeg(ffmpeg_location=None):
+def get_ffmpeg_path(ffmpeg_location=None):
     """
-    FFmpeg와 ffprobe 설치 확인
+    FFmpeg/ffprobe 설치 확인 및 경로 반환
     """
-    import shutil
     ffmpeg_path = ffmpeg_location or shutil.which("ffmpeg")
     ffprobe_path = ffmpeg_location or shutil.which("ffprobe")
+
     if not ffmpeg_path or not ffprobe_path:
         raise Exception(
             "⚠️ FFmpeg 또는 ffprobe를 찾을 수 없습니다.\n"
-            "설치 후 환경 변수에 경로를 추가하거나, "
-            "--ffmpeg-location 옵션으로 경로를 지정하세요.\n"
+            "설치 후 환경 변수에 경로를 추가하거나, --ffmpeg-location 옵션으로 경로를 지정하세요.\n"
             "Windows: https://ffmpeg.org/download.html\n"
             "Mac: brew install ffmpeg\n"
             "Linux: sudo apt install ffmpeg"
@@ -26,10 +26,9 @@ def check_ffmpeg(ffmpeg_location=None):
 
 def download_audio(url: str, ffmpeg_location=None) -> str:
     """
-    영상에서 오디오 추출 후 MP3로 변환
-    ffmpeg 자동 확인 포함
+    영상에서 오디오 추출 후 MP3 변환
     """
-    ffmpeg_path = check_ffmpeg(ffmpeg_location)
+    ffmpeg_path = get_ffmpeg_path(ffmpeg_location)
 
     with tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as tmp:
         ydl_opts = {
@@ -77,7 +76,6 @@ def transcribe_audio_assemblyai(api_key: str, url: str, ffmpeg_location=None) ->
             raise Exception(f"⚠️ 전사 요청 실패: {response.status_code} - {response.text}")
         transcript_id = response.json()["id"]
 
-        # 처리 완료까지 대기
         while True:
             status_response = requests.get(f"{ASSEMBLYAI_URL}/transcript/{transcript_id}", headers=headers)
             if status_response.status_code != 200:
