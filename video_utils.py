@@ -8,19 +8,13 @@ import shutil
 ASSEMBLYAI_URL = "https://api.assemblyai.com/v2"
 
 def get_ffmpeg_path(ffmpeg_location=None):
-    """
-    FFmpeg/ffprobe 설치 확인 및 경로 반환
-    """
     ffmpeg_path = ffmpeg_location or shutil.which("ffmpeg")
-    ffprobe_path = ffmpeg_location or shutil.which("ffprobe")
+    ffprobe_path = ffmpeg_location.replace("ffmpeg","ffprobe") if ffmpeg_location else shutil.which("ffprobe")
 
     if not ffmpeg_path or not ffprobe_path:
         raise Exception(
             "⚠️ FFmpeg 또는 ffprobe를 찾을 수 없습니다.\n"
-            "설치 후 환경 변수에 경로를 추가하거나, --ffmpeg-location 옵션으로 경로를 지정하세요.\n"
-            "Windows: https://ffmpeg.org/download.html\n"
-            "Mac: brew install ffmpeg\n"
-            "Linux: sudo apt install ffmpeg"
+            "설치 후 환경 변수에 경로를 추가하거나, --ffmpeg-location 옵션으로 경로를 지정하세요."
         )
     return ffmpeg_path
 
