@@ -6,7 +6,7 @@ st.set_page_config(page_title="Video Summarizer AI", page_icon="🎥", layout="c
 st.title("🎥 영상 요약 AI")
 st.write(
     "링크를 입력하면 영상을 분석해 요약해주는 AI입니다.\n"
-    "OpenAI + AssemblyAI API Key를 직접 입력하세요!"
+    "OpenAI + AssemblyAI API Key를 입력하세요!"
 )
 
 # 사용자 입력
@@ -18,7 +18,7 @@ video_url = st.text_input("🔗 영상 링크를 입력하세요:")
 if video_url and openai_api_key and assemblyai_api_key:
     with st.spinner("⏳ 영상 분석 중..."):
         try:
-            # 1️⃣ AssemblyAI로 오디오 전사
+            # 1️⃣ AssemblyAI로 전사
             text_content = transcribe_audio_assemblyai(
                 assemblyai_api_key,
                 video_url
