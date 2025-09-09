@@ -13,7 +13,7 @@ def get_ffmpeg_path():
     if path:
         return path
     # 일반 설치 경로 예시 (Windows)
-    possible_path = "C:\ffmpeg\bin"
+    possible_path = "C:\\ffmpeg\\bin\\ffmpeg"
     return possible_path if shutil.os.path.exists(possible_path) else None
 
 ffmpeg_path = get_ffmpeg_path()
