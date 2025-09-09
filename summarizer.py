@@ -1,58 +1,50 @@
-import os
-from typing import List
-from openai import OpenAI
-from dotenv import load_dotenv
+import openai
 
-load_dotenv()
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-MODEL = os.getenv("OPENAI_SUMMARY_MODEL", "gpt-4o-mini")
-TARGET_LANG = os.getenv("SUMMARY_LANGUAGE", "ko")
+def chunk_text(text: str, max_tokens=2000):
+    words = text.split()
+    chunks, chunk = [], []
+    token_count = 0
 
-def _chunk_by_chars(text: str, max_chars: int = 8000, overlap: int = 400) -> List[str]:
+    for word in words:
+        chunk.append(word)
+        token_count += len(word.split())
+        if token_count > max_tokens:
+            chunks.append(" ".join(chunk))
+            chunk = []
+            token_count = 0
+
+    if chunk:
+        chunks.append(" ".join(chunk))
+    return chunks
+
+def summarize_text(api_key: str, text: str, language="ko") -> str:
     """
-    문자 기준 청크. 모델 토큰 초과 방지용. (대략 3~4문자 = 1토큰 가정)
+    OpenAI API를 사용한 텍스트 요약 (사용자 입력 API Key 사용)
     """
-    text = text.strip()
-    if len(text) <= max_chars:
-        return [text]
-    chunks = []
-    start = 0
-    n = len(text)
-    while start < n:
-        end = min(start + max_chars, n)
-        # 문장 경계 근처에서 자르기(간단히 마침표 탐색)
-        cut = text.rfind("\n", start, end)
-        if cut == -1:
-            cut = text.rfind(". ", start, end)
-        if cut == -1 or cut <= start + 200:
-            cut = end
-        chunks.append(text[start:cut].strip())
-        start = max(cut - overlap, cut)
-    return [c for c in chunks if c]
+    openai.api_key = api_key
+    try:
+        chunks = chunk_text(text)
+        summaries = []
 
-def _summarize_chunk(chunk: str) -> str:
-    msg = [
-        {"role": "system", "content": f"너는 고품질 영상 요약가야. 한국어({TARGET_LANG})로 핵심만 간결하게 요약해."},
-        {"role": "user", "content": f"다음 일부 내용을 요약해줘:\n\n{chunk}"}
-    ]
-    resp = client.chat.completions.create(model=MODEL, messages=msg, temperature=0.2)
-    return resp.choices[0].message.content.strip()
+        for idx, chunk in enumerate(chunks, 1):
+            response = openai.ChatCompletion.create(
+                model="gpt-3.5-turbo",  # 필요 시 gpt-4o-mini로 변경 가능
+                messages=[
+                    {"role": "system", "content": "당신은 영상을 간결하게 요약하는 전문가입니다."},
+                    {"role": "user", "content": f"다음 영상 내용 일부를 요약해줘:\n{chunk}"}
+                ]
+            )
+            summaries.append(response.choices[0].message["content"])
 
-def summarize_text_long(text: str) -> str:
-    """
-    긴 텍스트도 안정적으로 요약:
-    1) 청크별 1차 요약
-    2) 1차 요약들을 통합해 최종 요약
-    """
-    chunks = _chunk_by_chars(text)
-    partials = []
-    for c in chunks:
-        partials.append(_summarize_chunk(c))
+        # 부분 요약들을 종합하여 최종 요약 생성
+        final_response = openai.ChatCompletion.create(
+            model="gpt-3.5-turbo",
+            messages=[
+                {"role": "system", "content": "당신은 영상 요약 전문가입니다."},
+                {"role": "user", "content": f"다음 요약들을 종합하여 간결한 최종 요약을 작성해줘:\n{''.join(summaries)}"}
+            ]
+        )
+        return final_response.choices[0].message["content"]
 
-    joined = "\n\n".join(f"- {p}" for p in partials)
-    final_prompt = [
-        {"role": "system", "content": f"너는 전문 요약가야. 한국어({TARGET_LANG})로 명확하고 짧게 핵심을 정리해."},
-        {"role": "user", "content": f"아래 파트별 요약을 하나의 간결한 최종 요약으로 통합해줘.\n\n{joined}\n\n형식: 개요 → 핵심 논점(불릿) → 결론"}
-    ]
-    final = client.chat.completions.create(model=MODEL, messages=final_prompt, temperature=0.2)
-    return final.choices[0].message.content.strip()
+    except Exception as e:
+        return f"⚠️ 요약 중 오류 발생: {e}"
