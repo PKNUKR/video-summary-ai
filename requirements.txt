@@ -1,5 +1,5 @@
 streamlit
 openai
-yt-dlp
-requests
-tqdm
+assemblyai
+imageio-ffmpeg
+ffmpeg-python
