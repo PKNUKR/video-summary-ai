@@ -1,81 +1,65 @@
-import os
+import subprocess
+import imageio_ffmpeg as ffmpeg
 import requests
 import time
-import tempfile
-from yt_dlp import YoutubeDL, DownloadError
+import os
 
-ASSEMBLYAI_URL = "https://api.assemblyai.com/v2"
+def download_video(video_url, filename="video.mp4"):
+    """URL에서 비디오 다운로드"""
+    response = requests.get(video_url, stream=True)
+    response.raise_for_status()
+    with open(filename, "wb") as f:
+        for chunk in response.iter_content(chunk_size=8192):
+            f.write(chunk)
+    return filename
 
-# Windows 전용 고정 경로
-FFMPEG_PATH = "C:\\ffmpeg\\bin\\ffmpeg.exe"
-FFPROBE_PATH = "C:\\ffmpeg\\bin\\ffprobe.exe"
+def transcribe_audio_assemblyai(api_key, video_url):
+    """AssemblyAI를 사용해 영상 오디오 전사"""
+    ffmpeg_path = ffmpeg.get_ffmpeg_exe()  # 자동 ffmpeg 경로
 
-def get_ffmpeg_path():
-    if not (os.path.exists(FFMPEG_PATH) and os.path.exists(FFPROBE_PATH)):
-        raise Exception(
-            f"⚠️ FFmpeg 또는 ffprobe를 찾을 수 없습니다.\n"
-            f"ffmpeg.exe: {FFMPEG_PATH}\n"
-            f"ffprobe.exe: {FFPROBE_PATH}\n"
-            "설치 후 경로를 확인하세요."
-        )
-    return FFMPEG_PATH
+    # 1️⃣ 영상 다운로드
+    video_file = download_video(video_url)
 
-def download_audio(url: str) -> str:
-    ffmpeg_path = get_ffmpeg_path()
+    # 2️⃣ 오디오 추출
+    audio_file = "audio.mp3"
+    subprocess.run([
+        ffmpeg_path,
+        "-i", video_file,
+        "-q:a", "0",
+        "-map", "a",
+        audio_file
+    ], check=True)
 
-    import tempfile
-    with tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as tmp:
-        ydl_opts = {
-            "format": "bestaudio",
-            "outtmpl": tmp.name,
-            "quiet": True,
-            "ffmpeg_location": ffmpeg_path,
-            "postprocessors": [{
-                "key": "FFmpegExtractAudio",
-                "preferredcodec": "mp3",
-                "preferredquality": "192",
-            }],
-        }
-        try:
-            with YoutubeDL(ydl_opts) as ydl:
-                ydl.download([url])
-        except DownloadError as e:
-            raise Exception(f"⚠️ 영상 다운로드 실패: {e}")
+    # 3️⃣ AssemblyAI API 호출
+    headers = {
+        "authorization": api_key,
+        "content-type": "application/json"
+    }
+    upload_url = "https://api.assemblyai.com/v2/upload"
+    with open(audio_file, "rb") as f:
+        response = requests.post(upload_url, headers=headers, files={"file": f})
+    response.raise_for_status()
+    audio_url = response.json()["upload_url"]
 
-        if not os.path.exists(tmp.name) or os.path.getsize(tmp.name) == 0:
-            raise Exception("⚠️ 다운로드된 오디오 파일이 없거나 비어있습니다.")
-        return tmp.name
+    # 4️⃣ 전사 요청
+    transcript_request = {
+        "audio_url": audio_url
+    }
+    transcript_response = requests.post(
+        "https://api.assemblyai.com/v2/transcript",
+        headers=headers,
+        json=transcript_request
+    )
+    transcript_response.raise_for_status()
+    transcript_id = transcript_response.json()["id"]
 
-def upload_to_assemblyai(api_key: str, audio_path: str) -> str:
-    headers_upload = {"authorization": api_key, "content-type": "application/octet-stream"}
-    with open(audio_path, "rb") as f:
-        response = requests.post(f"{ASSEMBLYAI_URL}/upload", headers=headers_upload, data=f)
-    if response.status_code != 200:
-        raise Exception(f"⚠️ AssemblyAI 업로드 실패: {response.status_code} - {response.text}")
-    return response.json()["upload_url"]
-
-def transcribe_audio_assemblyai(api_key: str, url: str) -> str:
-    try:
-        audio_path = download_audio(url)
-        upload_url = upload_to_assemblyai(api_key, audio_path)
-
-        headers = {"authorization": api_key, "content-type": "application/json"}
-        json_data = {"audio_url": upload_url, "language_code": "ko", "auto_highlights": True}
-        response = requests.post(f"{ASSEMBLYAI_URL}/transcript", headers=headers, json=json_data)
-        if response.status_code != 200:
-            raise Exception(f"⚠️ 전사 요청 실패: {response.status_code} - {response.text}")
-        transcript_id = response.json()["id"]
-
-        while True:
-            status_response = requests.get(f"{ASSEMBLYAI_URL}/transcript/{transcript_id}", headers=headers)
-            if status_response.status_code != 200:
-                raise Exception(f"⚠️ 상태 조회 실패: {status_response.status_code} - {status_response.text}")
-            status = status_response.json()
-            if status["status"] == "completed":
-                return status["text"]
-            elif status["status"] == "error":
-                raise Exception(f"⚠️ AssemblyAI 오류: {status['error']}")
-            time.sleep(5)
-
-    except Exception as e:
-        return str(e)
+    # 5️⃣ 전사 완료 대기
+    while True:
+        polling_response = requests.get(f"https://api.assemblyai.com/v2/transcript/{transcript_id}", headers=headers)
+        polling_response.raise_for_status()
+        status = polling_response.json()["status"]
+        if status == "completed":
+            return polling_response.json()["text"]
+        elif status == "failed":
+            raise RuntimeError("AssemblyAI transcription failed")
+        time.sleep(3)
