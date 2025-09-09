@@ -1,0 +1,15 @@
+streamlit
+python-dotenv
+yt-dlp
+requests
+
+# OpenAI (>=1.0 신형 SDK)
+openai>=1.40.0
+
+# AssemblyAI 초고속 STT
+assemblyai>=0.36.0
+
+# (선택) Whisper 로컬 STT 백업용
+torch
+torchaudio
+git+https://github.com/openai/whisper.git
