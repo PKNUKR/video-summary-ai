@@ -1,5 +1,5 @@
 import streamlit as st
-from video_utils_fixed import transcribe_audio_assemblyai
+from video_utils import transcribe_audio_assemblyai
 from summarizer import summarize_text
 
 st.set_page_config(page_title="Video Summarizer AI", page_icon="🎥", layout="centered")
