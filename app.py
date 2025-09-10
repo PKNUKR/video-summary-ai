@@ -1,28 +1,37 @@
 # app.py
 import streamlit as st
-import ffmpeg
 from pathlib import Path
 import os
 from openai import OpenAI
+import ffmpeg
 import wave
 import contextlib
+
+# YouTube 다운로드
+from pytube import YouTube
 
 # --------------------------
 # OpenAI API 키
 # --------------------------
 client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
 
-st.title("Video Summary AI")
+st.title("Video Summary AI (자동 다운로드 + 요약)")
 
 # --------------------------
-# 영상 업로드
+# URL 입력
 # --------------------------
-uploaded_file = st.file_uploader("영상 파일 업로드", type=["mp4", "mov"])
-if uploaded_file:
-    video_path = Path("temp_video.mp4")
-    with open(video_path, "wb") as f:
-        f.write(uploaded_file.read())
-    st.success("영상 업로드 완료")
+url = st.text_input("YouTube 영상 URL 입력")
+if url:
+    st.info("영상 다운로드 중...")
+    try:
+        yt = YouTube(url)
+        stream = yt.streams.filter(progressive=True, file_extension="mp4").order_by("resolution").desc().first()
+        video_path = Path("temp_video.mp4")
+        stream.download(filename=video_path)
+        st.success(f"영상 다운로드 완료: {video_path.name}")
+    except Exception as e:
+        st.error(f"영상 다운로드 실패: {e}")
+        st.stop()
 
     # --------------------------
     # ffmpeg로 오디오 추출
@@ -33,6 +42,7 @@ if uploaded_file:
         st.success("오디오 추출 완료")
     except Exception as e:
         st.error(f"오디오 추출 실패: {e}")
+        st.stop()
 
     # --------------------------
     # 오디오 분할 (1분 단위)
@@ -75,5 +85,5 @@ if uploaded_file:
     st.write("\n\n".join(transcripts))
 
 # --------------------------
-# 기존 OCR/텍스트 요약 기능은 그대로 유지
+# 기존 OCR/텍스트 요약 기능 유지 가능
 # --------------------------
