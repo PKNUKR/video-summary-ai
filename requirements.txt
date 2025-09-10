@@ -1,8 +1,8 @@
 streamlit
 requests
 beautifulsoup4
-pytube
 ffmpeg-python
+yt-dlp
 opencv-python-headless
 pytesseract
 openai
