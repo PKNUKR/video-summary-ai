@@ -2,8 +2,4 @@ streamlit
 requests
 beautifulsoup4
 pytube
-pydub
-pyaudioop
-opencv-python-headless
-pytesseract
 openai
