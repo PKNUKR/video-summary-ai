@@ -1,3 +1,9 @@
-ffmpeg
-tesseract-ocr
-tesseract-ocr-kor
+streamlit
+requests
+beautifulsoup4
+pytube
+ffmpeg-python
+opencv-python-headless
+pytesseract
+openai
+python-dotenv
