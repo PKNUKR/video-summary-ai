@@ -7,4 +7,3 @@ pyaudioop
 opencv-python-headless
 pytesseract
 openai
-python-dotenv
