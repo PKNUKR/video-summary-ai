@@ -1,5 +1,9 @@
 streamlit
+requests
+beautifulsoup4
+pytube
+pydub
+opencv-python-headless
+pytesseract
 openai
-assemblyai
-imageio-ffmpeg
-ffmpeg-python
+python-dotenv
