@@ -7,8 +7,8 @@ import ffmpeg
 import wave
 import contextlib
 
-# YouTube 다운로드
-from pytube import YouTube
+# yt-dlp
+import yt_dlp
 
 # --------------------------
 # OpenAI API 키
@@ -18,16 +18,20 @@ client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
 st.title("Video Summary AI (자동 다운로드 + 요약)")
 
 # --------------------------
-# URL 입력
+# YouTube URL 입력
 # --------------------------
 url = st.text_input("YouTube 영상 URL 입력")
 if url:
     st.info("영상 다운로드 중...")
+    video_path = Path("temp_video.mp4")
     try:
-        yt = YouTube(url)
-        stream = yt.streams.filter(progressive=True, file_extension="mp4").order_by("resolution").desc().first()
-        video_path = Path("temp_video.mp4")
-        stream.download(filename=video_path)
+        ydl_opts = {
+            'format': 'bestvideo+bestaudio/best',
+            'outtmpl': str(video_path),
+            'merge_output_format': 'mp4',
+        }
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            ydl.download([url])
         st.success(f"영상 다운로드 완료: {video_path.name}")
     except Exception as e:
         st.error(f"영상 다운로드 실패: {e}")
